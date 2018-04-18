@@ -1,0 +1,13 @@
+Formato dos Arquivos
+
+primeira linha ==> n (número de itens / objetos)
+
+segunda linha ==> C (Capacidade da mochila)
+
+Demais linhas (uma para cada item i=1 a n)
+Wi Pi
+
+onde:
+
+Wi = valor (utilidade) de cada item-i
+Pi = peso do objeto-i

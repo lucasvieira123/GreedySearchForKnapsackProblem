@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane prefHeight="130.0" prefWidth="372.0" xmlns="http://javafx.com/javafx/8.0.121" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Controller.Main">
+   <children>
+      <RadioButton fx:id="valueDividedWeightRadioBt" layoutX="138.0" layoutY="60.0" mnemonicParsing="false" text="Value/Weight" />
+      <RadioButton fx:id="weightDividedValueRadioBt" layoutX="14.0" layoutY="60.0" mnemonicParsing="false" text="Weight/Value" />
+      <Button fx:id="startBtn" layoutX="301.0" layoutY="60.0" mnemonicParsing="false" prefHeight="26.0" prefWidth="66.0" text="Start" />
+      <Button fx:id="chooseBtn" layoutX="300.0" layoutY="20.0" mnemonicParsing="false" text="Choose" />
+      <Separator layoutY="90.0" prefHeight="6.0" prefWidth="372.0" />
+      <TextField fx:id="pathFileTxtFild" disable="true" editable="false" layoutX="14.0" layoutY="20.0" prefHeight="26.0" prefWidth="285.0" text="Path settings file" />
+      <TextField fx:id="amoutTxtField" editable="false" layoutX="66.0" layoutY="100.0" prefHeight="26.0" prefWidth="300.0" />
+      <Label layoutX="5.0" layoutY="100.0" prefHeight="26.0" prefWidth="59.0" text="Amount:" />
+   </children>
+</AnchorPane>
