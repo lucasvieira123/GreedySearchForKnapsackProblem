@@ -1,10 +1,12 @@
 package Controller;
 
+import custom.*;
 import javafx.application.Application;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.AnchorPane;
@@ -37,20 +39,24 @@ public class Main extends Application {
     @FXML
     private Button chooseBtn;
 
+    @FXML
+    private CheckBox multDimencheckBox;
+
 
 
     FileChooser fileChooser = new FileChooser();
-    private File chosenFile;
+    private File selectedFile;
     private boolean weightDividedValueIsSelected = true;
 
-    private Float [] valuesArray;
-    private Float [] weightsArray;
+    private float[] valuesArray;
+    private float[][] weightsMatrix;
     private Map<Integer,Float> relativeCostsMap;
 
-    private float fullWeight;
+    private float [] fullWeights;
     private int countValues;
     private int countWeights;
     private int countRelativeCosts;
+    private boolean isMultipleKnapsack = true;
 
 
     public void start(Stage primaryStage) throws Exception {
@@ -99,12 +105,14 @@ public class Main extends Application {
         });
 
         chooseBtn.setOnAction(event -> {
-             chosenFile = fileChooser.showOpenDialog(primaryStage);
-            pathFileTxtFild.setText(chosenFile.getPath());
+             selectedFile = fileChooser.showOpenDialog(primaryStage);
+            pathFileTxtFild.setText(selectedFile.getPath());
 
         });
         
         startBtn.setOnAction(event -> {
+            isMultipleKnapsack = multDimencheckBox.isSelected();
+
            if(checkExistFile()){
                startReadFileAndAlgorithmGreedySearch();
                
@@ -120,8 +128,31 @@ public class Main extends Application {
 
     }
 
+    ReaderFile readerFile;
+
     private void startReadFileAndAlgorithmGreedySearch() {
-       readFileAndSaveValuesSaveWeightsAndRelativeCostAndCountOfValuesAndWithKnapsackCapacity();
+        //unique mult dimension
+        if(isMultipleKnapsack){
+            readerFile = new ReaderFileWithMultDimension(selectedFile, weightDividedValueIsSelected);
+            readerFile.buildAllConfigurations();
+
+            relativeCostsMap = readerFile.getRelativeCostsMap();
+            valuesArray = readerFile.getValuesElementsArray();
+            weightsMatrix = readerFile.getWeightsMatrix();
+            fullWeights = readerFile.getCapacityKnapsackArray();
+
+        }else {
+            //unique dimension
+            readerFile = new ReaderFileWithOneDimension(selectedFile,
+                    weightDividedValueIsSelected);
+            readerFile.buildAllConfigurations();
+            relativeCostsMap = readerFile.getRelativeCostsMap();
+            valuesArray = readerFile.getValuesElementsArray();
+            weightsMatrix = readerFile.getWeightsMatrix();
+            fullWeights = readerFile.getCapacityKnapsackArray();
+        }
+
+
         float amount = startAlgorithmGreedySearch();
 
         amoutTxtField.setText("");
@@ -131,38 +162,39 @@ public class Main extends Application {
     }
 
     private Float startAlgorithmGreedySearch() {
-        ArrayList<Map.Entry<Integer,Float>> ordernedList;
-
-        boolean ascendingOrder = false; // ordem crescente
+        boolean ascendingOrder = false; // ordem decrescente
 
         if(weightDividedValueIsSelected){
             ascendingOrder = true;
         }
 
-        if(ascendingOrder){
-            ordernedList = (ArrayList<Map.Entry<Integer, Float>>) buildAscendingOrderList();
-        }else {
-            ordernedList = (ArrayList<Map.Entry<Integer, Float>>) buildReverseOrderList();
-        }
+        ArrayList<Map.Entry<Integer,Float>> ordernedList = new SortHelp(ascendingOrder, relativeCostsMap)
+                .getOrdenedList();
+
 
         float weightPlaced = 0;
         float amount = 0;
         int currentKey;
-
-
+        int indexSnapsack = 0;
 
 
         for (Map.Entry<Integer, Float> entry : ordernedList){
           currentKey = entry.getKey();
 
-          if(willExceedMaximumCapacity(currentKey, weightPlaced)){
-              return amount;
+          if(willExceedMaximumCapacity(currentKey, weightPlaced, indexSnapsack)){
+
+              if(existSnapsackYet(indexSnapsack)){
+                  indexSnapsack++;
+                  weightPlaced=0;
+
+              }else {
+                  return amount;
+              }
+
           }
 
-
-
           amount += getCurrentValue(currentKey);
-            weightPlaced += getCurrentWeight(currentKey);
+          weightPlaced += getCurrentWeight(currentKey);
 
         }
 
@@ -171,168 +203,31 @@ public class Main extends Application {
 
     }
 
-    private boolean willExceedMaximumCapacity(int currentKey, float weightPlaced) {
-        return getCurrentWeight(currentKey)+weightPlaced> fullWeight;
+    private boolean existSnapsackYet(int snapsack) {
+      int indexSnapsack = readerFile.getNumberOfKnapsack();
+        return indexSnapsack > snapsack+1;
+    }
+
+    private boolean willExceedMaximumCapacity(int currentKey, float weightPlaced, int indexSnapsack) {
+        return getCurrentWeight(currentKey)+weightPlaced > fullWeights[indexSnapsack];
 
     }
 
     private float getCurrentValue(int currentKey) {
-        return valuesArray[currentKey];
+        int currentCollumn = currentKey % readerFile.getNumberOfElements();
+        return valuesArray[currentCollumn];
     }
 
     private float getCurrentWeight(int currentKey) {
-        return weightsArray[currentKey];
+        int currentLine = currentKey / readerFile.getNumberOfElements();
+        int currentCollumn = currentKey % readerFile.getNumberOfElements();
+        return weightsMatrix[currentLine][ currentCollumn];
     }
 
-
-    private List<Map.Entry<Integer,Float>> buildReverseOrderList() {
-        List<Map.Entry<Integer,Float>> sortedEntries = new ArrayList<>(relativeCostsMap.entrySet());
-
-        sortedEntries.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
-
-        return sortedEntries;
-
-    }
-
-    private  List<Map.Entry<Integer,Float>> buildAscendingOrderList() {
-        List<Map.Entry<Integer,Float>> sortedEntries = new ArrayList<>(relativeCostsMap.entrySet());
-
-         sortedEntries.sort(Comparator.comparing(Map.Entry::getValue));
-
-         return  sortedEntries;
-    }
-
-
-    private void readFileAndSaveValuesSaveWeightsAndRelativeCostAndCountOfValuesAndWithKnapsackCapacity() {
-        BufferedReader br = tryGetBufferedReader();
-        final int COUNT_LINES_WITH_COUNT_OF_VALUES_AND_FULL_WEIGHT = 2;
-        int countLines = 0;
-
-        if(br == null) return;
-
-        String line = tryReadLine(br);
-
-       // if(fistLine == null) return;
-
-       // int [] countsValuesAndFullWeight = getValueAndWeightFrom(fistLine);
-
-        while (line!= null && !line.equals("")){
-            countLines ++;
-
-            if(countLines <= COUNT_LINES_WITH_COUNT_OF_VALUES_AND_FULL_WEIGHT){
-                if(countLines == 1){
-                    readLineWithCountOfValues(line);
-                }
-
-                if(countLines == 2){
-                    readLineWithKnapsackCapacityAndCreateArrays(line);
-                }
-
-            }else {
-                readLineWithValueAndWeightAndCalculateRelativeCostAndSaveInArrays(line,countLines);
-            }
-
-            line = tryReadLine(br);
-        }
-
-    }
-
-
-
-    private void readLineWithCountOfValues(String line) {
-        countValues = Integer.valueOf(line);
-        countWeights = countValues;
-        countRelativeCosts = countValues;
-    }
-
-    private void readLineWithKnapsackCapacityAndCreateArrays(String line) {
-        fullWeight = Integer.valueOf(line);
-        createArrays();
-    }
-
-    private void createArrays() {
-        valuesArray = new Float[countValues];
-        weightsArray = new Float[countValues];
-        relativeCostsMap = new HashMap<>();
-    }
-
-    /*private void buildAscendingOrderList() {
-
-        relativeCostsMap = new TreeMap<>();
-
-    }
-
-    private void buildReverseOrderList() {
-        relativeCostsMap = new TreeMap<>(Comparator.reverseOrder());
-    }*/
-
-
-
-
-    private void readLineWithValueAndWeightAndCalculateRelativeCostAndSaveInArrays(String line, int countLines) {
-        final int COUNT_OF_HEAD_LINES = 2;
-
-        int index = countLines - COUNT_OF_HEAD_LINES -1; //( -1 to force init zero)
-
-        float [] valuesAndWeightsFloatArray = getValueAndWeightFrom(line);
-
-        float value = valuesAndWeightsFloatArray[0];
-        float weight = valuesAndWeightsFloatArray[1];
-        float relativeCost = calculeteRelativeCost(value,weight);
-
-        valuesArray[index] = value;
-        weightsArray[index] = weight;
-        relativeCostsMap.put(index,relativeCost);
-
-    }
-
-    private float calculeteRelativeCost(float value, float weight) {
-        if(weightDividedValueIsSelected){
-            return (weight/value);
-        }else {
-            return (value/weight);
-        }
-
-    }
-
-
-    private float[] getValueAndWeightFrom(String line) {
-        String [] valuesAndWeightString =  line.trim().split("\\s+");
-
-        float [] valuesAndWeightsFloatArray = new float[2];
-
-        valuesAndWeightsFloatArray [0] = Float.valueOf(valuesAndWeightString[0]);
-        valuesAndWeightsFloatArray [1] = Float.valueOf(valuesAndWeightString[1]);
-
-        return valuesAndWeightsFloatArray;
-
-    }
-
-    private BufferedReader tryGetBufferedReader() {
-        try {
-            return new BufferedReader(new FileReader(chosenFile));
-        } catch (FileNotFoundException e) {
-            //print msg de erro
-            e.printStackTrace();
-        }
-
-        return null;
-    }
-
-    private String tryReadLine(BufferedReader br) {
-
-        try {
-            return br.readLine();
-        } catch (IOException e) {
-            //print msg de erro
-            e.printStackTrace();
-        }
-        return null;
-    }
 
 
     private boolean checkExistFile() {
-        return chosenFile != null;
+        return selectedFile != null;
     }
 
     public static void main(String[] args) {
